@@ -15,7 +15,7 @@ class IntegrationController extends Controller
     public function index(Request $request, Team $current_team, Project $project, IntegrationService $service)
     {
         return Inertia::render('projects/settings/index', [
-            'project' => $project->load(['integrations', 'alertRules.integrations', 'thresholds']),
+            'project' => $project->makeVisible(['api_token'])->load(['integrations', 'alertRules.integrations', 'thresholds']),
             'integrations' => $project->integrations,
             'alert_rules' => $project->alertRules,
             'available_types' => $service->getAvailableTypes(),
