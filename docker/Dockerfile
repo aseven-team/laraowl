@@ -5,6 +5,7 @@ COPY --from=composer /usr/bin/composer /usr/bin/composer
 
 # Install required dependencies
 RUN apk --no-cache add \
+    su-exec \
     postgresql-dev \
     libpng-dev \
     zlib-dev \
@@ -29,7 +30,7 @@ RUN docker-php-ext-install pdo pgsql pdo_pgsql gd bcmath zip exif pcntl \
     && docker-php-ext-enable redis \
     && docker-php-ext-configure pcntl --enable-pcntl
 
-WORKDIR /usr/share/nginx/html/
+WORKDIR /usr/share/caddy/html/
 COPY . .
 
 # Install dependencies with composer
@@ -49,8 +50,10 @@ RUN npm install \
 
 # Set permissions and prepare Laravel
 RUN php artisan package:discover --ansi \
-  && chmod -R 775 storage \
-  && chown -R www-data:www-data storage
+  && chown -R www-data:www-data /usr/share/caddy/html/storage \
+  && chown -R www-data:www-data /usr/share/caddy/html/bootstrap/cache \
+  && chmod -R 775 /usr/share/caddy/html/storage \
+  && chmod -R 775 /usr/share/caddy/html/bootstrap/cache
 
 COPY ./docker/php-fpm-entrypoint /usr/local/bin/php-entrypoint
 

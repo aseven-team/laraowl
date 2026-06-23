@@ -3,7 +3,8 @@
 main() {
     # Allow workers to execute direct commands in the container (php artisan queue:work, etc.)
     if [ "$IS_WORKER" = "true" ]; then
-        exec "$@"
+        # su-exec drops root privileges and runs the command as www-data
+        exec su-exec www-data "$@"
     else
         prepare_storage
         wait_for_db
@@ -14,10 +15,11 @@ main() {
 }
 
 prepare_storage() {
-    # Set permissions for the storage directory for the web server user
-    chown -R www-data:www-data /usr/share/nginx/html/storage
-    chmod -R 775 /usr/share/nginx/html/storage
-
+    echo "Preparing storage permissions..."
+    chown -R www-data:www-data /usr/share/caddy/html/storage
+    chown -R www-data:www-data /usr/share/caddy/html/bootstrap/cache
+    chmod -R 775 /usr/share/caddy/html/storage
+    chmod -R 775 /usr/share/caddy/html/bootstrap/cache
     php artisan storage:link
 }
 

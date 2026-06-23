@@ -1,32 +1,49 @@
-{$APP_HOSTNAME}, ws.{$APP_HOSTNAME}, localhost {
-    root * /usr/share/caddy/html/public
+{$APP_HOSTNAME}, ws.{$APP_HOSTNAME} {
+        root * /usr/share/caddy/html/public
 
-    # Allow large file uploads
-    request_body {
-        max_size 100mb
-    }
+        header {
+                # enable HSTS
+                # Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
 
-    # Serve storage files directly
-    handle_path /storage/* {
-        root * /usr/share/caddy/html/storage/app/public
-        file_server
-        header Cache-Control "public, max-age=31536000"
-    }
+                # Enable cross-site filter (XSS) and tell browser to block detected attacks
+                X-Xss-Protection "1; mode=block"
 
-    # Proxy Reverb WebSocket connection
-    handle /app* {
-        reverse_proxy reverb:8080
-    }
+                # disable clients from sniffing the media type
+                X-Content-Type-Options "nosniff"
 
-    # Handle PHP files with FastCGI
-    handle {
+                # clickjacking protection
+                X-Frame-Options "SAMEORIGIN"
+
+                Content-Security-Policy "upgrade-insecure-requests"
+
+                # hide server name
+                -Server Caddy
+        }
+
+        # Allow large file uploads
+        request_body {
+                max_size 100mb
+        }
+
+        # Serve storage files directly
+        handle_path /storage/* {
+                root * /usr/share/caddy/html/storage/app/public
+                file_server
+                header Cache-Control "public, max-age=31536000"
+        }
+
+        # Proxy Reverb WebSocket connection
+        handle /app* {
+                reverse_proxy reverb:8080
+        }
+
+        # Handle PHP files with FastCGI
         php_fastcgi app:9000
         file_server
-    }
 
-    # Logging
-    log {
-        output stdout
-        format console
-    }
+        # Logging
+        log {
+                output stdout
+                format console
+        }
 }
