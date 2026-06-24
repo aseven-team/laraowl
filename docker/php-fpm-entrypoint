@@ -1,0 +1,48 @@
+#!/bin/bash
+
+main() {
+    # Allow workers to execute direct commands in the container (php artisan queue:work, etc.)
+    if [ "$IS_WORKER" = "true" ]; then
+        # su-exec drops root privileges and runs the command as www-data
+        exec su-exec www-data "$@"
+    else
+        prepare_storage
+        wait_for_db
+        run_migrations
+        optimize_app
+        run_server "$@"
+    fi
+}
+
+prepare_storage() {
+    echo "Preparing storage permissions..."
+    chown -R www-data:www-data /usr/share/caddy/html/storage
+    chown -R www-data:www-data /usr/share/caddy/html/bootstrap/cache
+    chmod -R 775 /usr/share/caddy/html/storage
+    chmod -R 775 /usr/share/caddy/html/bootstrap/cache
+    php artisan storage:link
+}
+
+
+wait_for_db() {
+    echo "Waiting for DB to be ready"
+    until ./artisan migrate:status 2>&1 | grep -q -E "(Migration table not found|Migration name)"; do
+        sleep 1
+        echo "."
+    done
+}
+
+run_migrations() {
+    ./artisan migrate --force
+}
+
+optimize_app() {
+    ./artisan optimize:clear
+    ./artisan optimize
+}
+
+run_server() {
+    exec /usr/local/bin/docker-php-entrypoint "$@"
+}
+
+main "$@"

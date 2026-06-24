@@ -137,9 +137,71 @@ Set custom performance budgets per project:
 
 ---
 
-## Quick Start
+# Quick Start
 
-### Prerequisites
+## Server Installation
+
+Choose one of the following methods to install the LaraOwl server:
+
+### Docker
+
+This project comes with a custom `Dockerfile` and `docker-compose.yml` for easy deployment. To get started:
+
+
+#### Changes in `.env` for docker configuration:
+
+First copy the production environment file:
+
+```bash
+cp .env.prod .env
+```
+
+Then update the following variables in `.env`:
+
+```dotenv
+APP_URL=https://your-production-domain.com
+APP_HOSTNAME=your-production-domain.com
+REVERB_APP_ID=000000
+REVERB_APP_KEY=xxxxxxxxxxxxxxxxxxxxx
+REVERB_APP_SECRET=xxxxxxxxxxxxxxxxxxxxx
+```
+
+The docker-compose.yaml file already has the correct service names for `db`, `redis`, and `reverb`. You only need to change the hostname and database credentials if you want to customize them.
+
+#### Starting Production server
+Use the following command to start the server in production mode:
+
+```bash
+docker compose up -d --build
+```
+
+The server will be available at `https://your-production-domain.com`. Make sure your DNS resolves for `ws.your-production-domain.com` and `your-production-domain.com`. Caddy will automatically fetch and renew SSL certificates for your domain.  
+
+You can add a simple user through a tinker sessions with the following command:
+
+```bash
+docker compose exec -ti app /bin/bash
+```
+
+Then run the following commands to start a tinker session:
+
+
+```bash
+php artisan tinker
+```
+
+And then create a admin user.
+
+```
+User::updateOrCreate(
+    ['email' => 'admin@laraowl.com'],
+    ['name' => 'Admin', 'password' => bcrypt('changeme')]
+);
+```
+
+#### Using Composer
+
+**Requirements:**
 
 - PHP 8.3+
 - Node.js 18+
@@ -147,18 +209,12 @@ Set custom performance budgets per project:
 - MySQL 8.0+ or PostgreSQL
 - A queue worker
 
-### Installation
-
-Choose one of the following methods to install the LaraOwl server:
-
-#### Using Composer
 ```bash
 composer create-project laraowl/laraowl laraowl
 cd laraowl
 ```
-
-#### Finalizing Setup
 Once the files are ready, complete the setup:
+
 ```bash
 # Install frontend dependencies
 npm install
