@@ -1,6 +1,6 @@
 FROM composer:2 AS composer
 
-FROM php:8.4-fpm-alpine AS app
+FROM php:8.3-fpm-alpine AS app
 COPY --from=composer /usr/bin/composer /usr/bin/composer
 
 # Install required dependencies
