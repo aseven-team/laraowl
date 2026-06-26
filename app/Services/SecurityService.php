@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\ProbeDirectoryListing;
 use App\Models\Project;
 use App\Models\Record;
 use Illuminate\Support\Facades\Cache;
@@ -337,12 +338,13 @@ class SecurityService
             ];
         }
 
-        if ($publicFiles['directory_listing_enabled'] ?? false) {
-            $securityIssues[] = [
-                'type' => 'configuration',
-                'details' => 'Directory listing might be enabled in public folder',
-                'priority' => 'medium',
-            ];
+        // The client flag is an unreliable Apache-only heuristic, so verify by
+        // external probe unless the client is certain listing is off. afterCommit:
+        // audit() runs inside the ingest DB transaction.
+        $dirListing = $publicFiles['directory_listing_enabled'] ?? null;
+        $appUrl = $env['app_url'] ?? null;
+        if ($dirListing !== false && $appUrl) {
+            ProbeDirectoryListing::dispatch($project, $record, $appUrl)->afterCommit();
         }
 
         // 4. Dependency Analysis (Simple version)
