@@ -66,8 +66,13 @@ class RecordService
                 ->ofType('request')
                 ->forPeriod($period, $from, $to)
                 ->select([
-                    DB::raw("{$method} as method"),
-                    DB::raw("{$path} as path"),
+                    // method/path are functionally determined by fingerprint
+                    // (fingerprint = md5(method.route_path)), so grouping by the
+                    // real, indexed fingerprint column alone yields identical
+                    // groups while letting the (project_id, type, fingerprint)
+                    // index do the work instead of grouping on JSON expressions.
+                    DB::raw("MIN({$method}) as method"),
+                    DB::raw("MIN({$path}) as path"),
                     'fingerprint as hash',
                     DB::raw('COUNT(*) as total'),
                     DB::raw("SUM(CASE WHEN {$statusCode} BETWEEN 100 AND 399 THEN 1 ELSE 0 END) as ok_count"),
@@ -76,7 +81,7 @@ class RecordService
                     DB::raw("AVG({$duration}) as avg_duration"),
                     DB::raw("MAX({$duration}) as p95_duration"),
                 ])
-                ->groupBy('method', 'path', 'fingerprint')
+                ->groupBy('fingerprint')
                 ->orderBy($sort, $direction)
                 ->paginate(20)->withQueryString(),
             'timeSeries' => $this->getDetailedTimeSeries($project, 'request', $period, $from, $to),
@@ -274,7 +279,10 @@ class RecordService
                 ->whereIn('type', $types)
                 ->forPeriod($period, $from, $to)
                 ->select([
-                    DB::raw("COALESCE(
+                    // job_class is a display label for the fingerprint group
+                    // (fingerprint = md5(job/name/job_class)); group by the
+                    // indexed fingerprint instead of the JSON COALESCE.
+                    DB::raw("MIN(COALESCE(
                         {$this->jsonText('name')},
                         {$this->jsonText('job')},
                         {$this->jsonText('job_class')},
@@ -282,7 +290,7 @@ class RecordService
                         {$this->jsonText('payload.displayName')},
                         {$this->jsonText('data.commandName')},
                         'Unknown Job'
-                    ) as job_class"),
+                    )) as job_class"),
                     'fingerprint as hash',
                     DB::raw('COUNT(*) as total'),
                     DB::raw("SUM(CASE WHEN {$status} = 'processed' THEN 1 ELSE 0 END) as processed_count"),
@@ -290,7 +298,7 @@ class RecordService
                     DB::raw("AVG({$duration}) as avg_duration"),
                     DB::raw("MAX({$duration}) as p95_duration"),
                 ])
-                ->groupBy('job_class', 'fingerprint')
+                ->groupBy('fingerprint')
                 ->orderBy('total', 'desc')
                 ->paginate(20)->withQueryString(),
             'timeSeries' => $this->getDetailedTimeSeries($project, 'job-attempt', $period, $from, $to),
@@ -326,13 +334,16 @@ class RecordService
                 ->forPeriod($period, $from, $to)
                 ->select([
                     'fingerprint as hash',
-                    DB::raw("{$this->jsonText('class')} as class"),
-                    DB::raw("{$this->jsonText('message')} as message"),
+                    // class/message are the fingerprint inputs (fingerprint =
+                    // md5(class.message)), so grouping by the indexed fingerprint
+                    // alone is equivalent and avoids grouping on JSON expressions.
+                    DB::raw("MIN({$this->jsonText('class')}) as class"),
+                    DB::raw("MIN({$this->jsonText('message')}) as message"),
                     DB::raw('COUNT(*) as total_count'),
                     DB::raw("COUNT(DISTINCT {$userDistinct}) as user_count"),
                     DB::raw('MAX(created_at) as last_seen'),
                 ])
-                ->groupBy('class', 'message', 'fingerprint')
+                ->groupBy('fingerprint')
                 ->orderBy('last_seen', 'desc')
                 ->paginate(20)->withQueryString(),
             'timeSeries' => $this->getDetailedTimeSeries($project, 'exception', $period, $from, $to),
@@ -484,14 +495,18 @@ class RecordService
                 ->forPeriod($period, $from, $to)
                 ->select([
                     'fingerprint as hash',
-                    DB::raw("{$this->jsonText('sql')} as sql_query"),
+                    // sql is the fingerprint input (fingerprint = md5(sql)); keep
+                    // db_connection in the key since the same SQL on a different
+                    // connection is a distinct row, but drop the heavy JSON sql
+                    // text from the group key — MIN() is value-identical per hash.
+                    DB::raw("MIN({$this->jsonText('sql')}) as sql_query"),
                     DB::raw("COALESCE({$this->jsonText('connection')}, 'mysql') as db_connection"),
                     DB::raw('COUNT(*) as total_calls'),
                     DB::raw("AVG({$duration}) as avg_duration"),
                     DB::raw("MAX({$duration}) as p95_duration"),
                     DB::raw("SUM({$duration}) as total_duration"),
                 ])
-                ->groupBy('sql_query', 'hash', 'db_connection')
+                ->groupBy('hash', 'db_connection')
                 ->orderBy('total_calls', 'desc')
                 ->paginate(20)->withQueryString(),
             'timeSeries' => $this->getDetailedTimeSeries($project, 'query', $period, $from, $to),
