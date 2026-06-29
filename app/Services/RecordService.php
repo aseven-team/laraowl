@@ -83,6 +83,7 @@ class RecordService
                 ])
                 ->groupBy('fingerprint')
                 ->orderBy($sort, $direction)
+                ->toBase()
                 ->paginate(20)->withQueryString(),
             'timeSeries' => $this->getDetailedTimeSeries($project, 'request', $period, $from, $to),
             'overview' => [
@@ -300,6 +301,7 @@ class RecordService
                 ])
                 ->groupBy('fingerprint')
                 ->orderBy('total', 'desc')
+                ->toBase()
                 ->paginate(20)->withQueryString(),
             'timeSeries' => $this->getDetailedTimeSeries($project, 'job-attempt', $period, $from, $to),
             'overview' => [
@@ -345,6 +347,7 @@ class RecordService
                 ])
                 ->groupBy('fingerprint')
                 ->orderBy('last_seen', 'desc')
+                ->toBase()
                 ->paginate(20)->withQueryString(),
             'timeSeries' => $this->getDetailedTimeSeries($project, 'exception', $period, $from, $to),
             'overview' => [
@@ -508,6 +511,7 @@ class RecordService
                 ])
                 ->groupBy('hash', 'db_connection')
                 ->orderBy('total_calls', 'desc')
+                ->toBase()
                 ->paginate(20)->withQueryString(),
             'timeSeries' => $this->getDetailedTimeSeries($project, 'query', $period, $from, $to),
             'overview' => [
